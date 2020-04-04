@@ -140,16 +140,3 @@ async function streamToArray(
 		}
 	);
 }
-
-// let provider1 = vscode.languages.registerCompletionItemProvider(['javascript', 'typescript', 'javascriptreact', 'typescriptreact'], {
-// 	async provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, context: vscode.CompletionContext) {
-// 		const feature = await createDefineFeature(document);
-// 		if (!feature) {
-// 			return [];
-// 		}
-// 		return [
-// 			new vscode.CompletionItem(feature)
-// 		];
-// 	}
-// });
-// context.subscriptions.push(provider1);
