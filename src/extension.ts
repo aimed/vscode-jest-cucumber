@@ -68,11 +68,7 @@ function createDefineFeature(gherkinDocuments: messages.IGherkinDocument[]): str
 }
 
 function getLoadedFeaturePath(document: vscode.TextDocument) {
-	const loadFeatureMatch = document.getText().match(/loadFeature\(.(.+).\)/);
-	if (!loadFeatureMatch) {
-		return;
-	}
-
+	const loadFeatureMatch = document.getText().match(/loadFeature\(.(.+).\)/) || [];
 	const [, relativeFeaturePath] = loadFeatureMatch;
 	if (!relativeFeaturePath) {
 		return;
