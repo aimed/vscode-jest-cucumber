@@ -1,7 +1,3 @@
-/*---------------------------------------------------------
- * Copyright (C) Microsoft Corporation. All rights reserved.
- *--------------------------------------------------------*/
-
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -11,17 +7,21 @@ import { messages } from '@cucumber/messages';
 import { promisify } from 'util';
 
 const NEW_LINE = '\r\n';
+const fsExists = promisify(fs.exists);
 
 export function activate(context: vscode.ExtensionContext) {
 	let provider2 = vscode.commands.registerCommand('extension.jest-cucumber.defineFeatures', async () => {
 		const editor = vscode.window.activeTextEditor;
-
 		if (!editor) {
 			return;
 		}
 
-		const document = editor.document;
-		const feature = await createDefineFeature(document);
+		const gherkinDocuments = await tryGetGherkinDocumentsLoadedFromActiveEditor(editor);
+		if (!gherkinDocuments) {
+			return;
+		}
+
+		const feature = createDefineFeature(gherkinDocuments);
 
 		if (feature) {
 			editor.edit(builder => {
@@ -32,22 +32,30 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(provider2);
 }
 
-async function createDefineFeature(document: vscode.TextDocument): Promise<string | undefined> {
-	const loadedFeaturePath = getLoadedFeaturePath(document);
+async function tryGetGherkinDocumentsLoadedFromActiveEditor(editor: vscode.TextEditor): Promise<messages.IGherkinDocument[] | undefined> {
+	const loadedFeaturePath = getLoadedFeaturePath(editor.document);
 	if (!loadedFeaturePath) {
 		return;
 	}
 
-	if (!await promisify(fs.exists)(loadedFeaturePath)) {
+	if (!await fsExists(loadedFeaturePath)) {
 		return;
 	}
 
+	const gherkinDocuments = await getLoadedGherkinDocuments(loadedFeaturePath);
+	return gherkinDocuments;
+}
+
+async function getLoadedGherkinDocuments(loadedFeaturePath: string): Promise<messages.IGherkinDocument[]> {
 	const stream = gherkin.fromPaths([loadedFeaturePath]);
 	const gherkinEnvelopes = await streamToArray(stream);
 	const gherkinDocuments = gherkinEnvelopes
 		.filter(e => e.gherkinDocument)
 		.map(e => e.gherkinDocument!);
+	return gherkinDocuments;
+}
 
+function createDefineFeature(gherkinDocuments: messages.IGherkinDocument[]): string {
 	const features = gherkinDocuments
 		.map(createScenarioFeatures)
 		.map(scenarioFeatures => scenarioFeatures.join(NEW_LINE));
@@ -93,12 +101,12 @@ function createFeature({ scenario }: messages.GherkinDocument.Feature.IFeatureCh
 
 	return `
 		test('${scenario.name}', ({ given, when, then }) => {
-			${scenario.steps.map(implementStep).join(NEW_LINE)}
+			${scenario.steps.map(createStep).join(NEW_LINE)}
 		})
 	`;
 
 
-	function implementStep(step: messages.GherkinDocument.Feature.IStep): string {
+	function createStep(step: messages.GherkinDocument.Feature.IStep): string {
 		if (!step.keyword || !step.text) {
 			return '';
 		}
@@ -110,10 +118,10 @@ function createFeature({ scenario }: messages.GherkinDocument.Feature.IFeatureCh
 		// Handle scenario variables like 'When I sell the <Item>'
 		const vars = step.text.match(/<([^<]+)>/g) || [];
 		const args = vars.map(v => "var" + v.replace(/<|>/g, '') + ": string").join(', ');
-		const name = vars.length === 0 ? `'${step.text}'` : `/^${step.text.replace(/\\|\(|\)|\$|\^/g, (v) => `\\${v}`).replace(/<([^<]+)>/g, '(.*)')}$/`;
+		const text = vars.length === 0 ? `'${step.text}'` : `/^${step.text.replace(/\\|\(|\)|\$|\^/g, (v) => `\\${v}`).replace(/<([^<]+)>/g, '(.*)')}$/`;
 		const method = keyword.replace(' ', '').toLowerCase();
 		return `
-			${method}(${name}, async (${args}) => {
+			${method}(${text}, async (${args}) => {
 
 			})
 		`;
