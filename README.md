@@ -4,7 +4,7 @@ Adds `Define Features` to VSCode.
 Given a spec file similar to the one listed below the command will auto insert all tests needed for the feature file.
 
 ```feature
-// rocket.feature
+# rocket.feature
 Feature: Rocket Launching
 
     Scenario: Launching a SpaceX rocket
