@@ -50,8 +50,9 @@ async function getLoadedGherkinDocuments(loadedFeaturePath: string): Promise<mes
 	const stream = gherkin.fromPaths([loadedFeaturePath]);
 	const gherkinEnvelopes = await streamToArray(stream);
 	const gherkinDocuments = gherkinEnvelopes
-		.filter(e => e.gherkinDocument)
-		.map(e => e.gherkinDocument!);
+		.map(envelope => envelope.gherkinDocument)
+		.filter((maybeDocument): maybeDocument is messages.IGherkinDocument => maybeDocument != null);
+
 	return gherkinDocuments;
 }
 
