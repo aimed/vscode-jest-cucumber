@@ -11,7 +11,6 @@ import { messages } from '@cucumber/messages';
 import { promisify } from 'util';
 
 const NEW_LINE = '\r\n';
-const DOUBLE_NEW_LINE = `${NEW_LINE}${NEW_LINE}`;
 
 export function activate(context: vscode.ExtensionContext) {
 	let provider2 = vscode.commands.registerCommand('extension.jest-cucumber.defineFeatures', async () => {
@@ -24,11 +23,11 @@ export function activate(context: vscode.ExtensionContext) {
 		const document = editor.document;
 		const feature = await createDefineFeature(document);
 
-		editor.edit(builder => {
-			if (feature) {
+		if (feature) {
+			editor.edit(builder => {
 				builder.insert(editor.selection.start, feature);
-			}
-		});
+			});
+		}
 	});
 	context.subscriptions.push(provider2);
 }
@@ -43,20 +42,21 @@ async function createDefineFeature(document: vscode.TextDocument): Promise<strin
 		return;
 	}
 
-	const featureStream = gherkin.fromPaths([loadedFeaturePath]);
-	const gherkinEnvelopes = await streamToArray(featureStream);
-	const gherkinDocuments = gherkinEnvelopes.filter(e => e.gherkinDocument).map(e => e.gherkinDocument!);
-	if (gherkinDocuments.length === 0) {
-		return `defineFeature(feature, test => {})`;
-	}
+	const stream = gherkin.fromPaths([loadedFeaturePath]);
+	const gherkinEnvelopes = await streamToArray(stream);
+	const gherkinDocuments = gherkinEnvelopes
+		.filter(e => e.gherkinDocument)
+		.map(e => e.gherkinDocument!);
 
-	const features = gherkinDocuments.map(createFeatures).map(scenarioFeatures => scenarioFeatures.join(DOUBLE_NEW_LINE));
-	if (!features) {
-		return `defineFeature(feature, test => {})`;
-	}
+	const features = gherkinDocuments
+		.map(createScenarioFeatures)
+		.map(scenarioFeatures => scenarioFeatures.join(NEW_LINE));
 
-
-	return `defineFeature(feature, test => {${features.join(DOUBLE_NEW_LINE)}})`;
+	return `
+		defineFeature(feature, test => {
+			${features.join(NEW_LINE)}
+		})
+	`;
 }
 
 function getLoadedFeaturePath(document: vscode.TextDocument) {
@@ -74,7 +74,7 @@ function getLoadedFeaturePath(document: vscode.TextDocument) {
 	return absoluteFeaturePath;
 }
 
-function createFeatures(gherkinDocument: messages.IGherkinDocument): string[] {
+function createScenarioFeatures(gherkinDocument: messages.IGherkinDocument): string[] {
 	if (!gherkinDocument.feature || !gherkinDocument.feature.children) {
 		return [];
 	}
@@ -93,8 +93,9 @@ function createFeature({ scenario }: messages.GherkinDocument.Feature.IFeatureCh
 
 	return `
 		test('${scenario.name}', ({ given, when, then }) => {
-			${scenario.steps.map(implementStep).join(DOUBLE_NEW_LINE)}
-		})`;
+			${scenario.steps.map(implementStep).join(NEW_LINE)}
+		})
+	`;
 
 
 	function implementStep(step: messages.GherkinDocument.Feature.IStep): string {
@@ -111,7 +112,11 @@ function createFeature({ scenario }: messages.GherkinDocument.Feature.IFeatureCh
 		const args = vars.map(v => "var" + v.replace(/<|>/g, '') + ": string").join(', ');
 		const name = vars.length === 0 ? `'${step.text}'` : `/^${step.text.replace(/\\|\(|\)|\$|\^/g, (v) => `\\${v}`).replace(/<([^<]+)>/g, '(.*)')}$/`;
 		const method = keyword.replace(' ', '').toLowerCase();
-		return `${method}(${name}, async (${args}) => {})`;
+		return `
+			${method}(${name}, async (${args}) => {
+
+			})
+		`;
 	}
 }
 
