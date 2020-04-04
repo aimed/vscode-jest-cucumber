@@ -106,8 +106,12 @@ function createFeature({ scenario }: messages.GherkinDocument.Feature.IFeatureCh
 			keyword = step.keyword;
 		}
 
+		// Handle scenario variables like 'When I sell the <Item>'
+		const vars = step.text.match(/<([^<]+)>/g) || [];
+		const args = vars.map(v => "var" + v.replace(/<|>/g, '') + ": string").join(', ');
+		const name = vars.length === 0 ? `'${step.text}'` : `/^${step.text.replace(/\\|\(|\)|\$|\^/g, (v) => `\\${v}`).replace(/<([^<]+)>/g, '(.*)')}$/`;
 		const method = keyword.replace(' ', '').toLowerCase();
-		return `${method}('${step.text}', async () => {})`;
+		return `${method}(${name}, async (${args}) => {})`;
 	}
 }
 
