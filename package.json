@@ -20,13 +20,13 @@
 		"*"
 	],
 	"contributes": {
-        "commands": [
-            {
-                "command": "extension.jest-cucumber.defineFeatures",
-                "title": "Define Features"
-            }
-        ]
-    },
+		"commands": [
+			{
+				"command": "extension.jest-cucumber.defineFeatures",
+				"title": "Define Features"
+			}
+		]
+	},
 	"main": "./out/extension.js",
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
@@ -35,10 +35,10 @@
 		"watch": "tsc -watch -p ./"
 	},
 	"devDependencies": {
-		"@types/node": "^10.12.18",
-		"tslint": "^5.16.0",
-		"typescript": "^3.5.1",
-		"@types/vscode": "^1.32.0"
+		"@types/node": "^10.17.18",
+		"@types/vscode": "^1.43.0",
+		"tslint": "^5.20.1",
+		"typescript": "^3.8.3"
 	},
 	"dependencies": {
 		"@cucumber/messages": "^11.1.1",
