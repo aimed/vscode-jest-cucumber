@@ -5,8 +5,9 @@ import gherkin from 'gherkin';
 import { Readable } from 'stream';
 import { messages } from '@cucumber/messages';
 import { promisify } from 'util';
+import { createFeature } from './createFeature';
 
-const NEW_LINE = '\r\n';
+export const NEW_LINE = '\r\n';
 const fsExists = promisify(fs.exists);
 
 export function activate(context: vscode.ExtensionContext) {
@@ -16,7 +17,7 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 
-		const gherkinDocuments = await tryGetGherkinDocumentsLoadedFromActiveEditor(editor);
+		const gherkinDocuments = await tryGetGherkinDocumentsLoadedFromDocument(editor.document);
 		if (!gherkinDocuments) {
 			return;
 		}
@@ -32,8 +33,8 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(provider2);
 }
 
-async function tryGetGherkinDocumentsLoadedFromActiveEditor(editor: vscode.TextEditor): Promise<messages.IGherkinDocument[] | undefined> {
-	const loadedFeaturePath = getLoadedFeaturePath(editor.document);
+async function tryGetGherkinDocumentsLoadedFromDocument(document: vscode.TextDocument): Promise<messages.IGherkinDocument[] | undefined> {
+	const loadedFeaturePath = getAbsoluteFeaturePathIfLoaded(document);
 	if (!loadedFeaturePath) {
 		return;
 	}
@@ -68,7 +69,7 @@ function createDefineFeature(gherkinDocuments: messages.IGherkinDocument[]): str
 	`;
 }
 
-function getLoadedFeaturePath(document: vscode.TextDocument) {
+function getAbsoluteFeaturePathIfLoaded(document: vscode.TextDocument) {
 	const loadFeatureMatch = document.getText().match(/loadFeature\(.(.+).\)/) || [];
 	const [, relativeFeaturePath] = loadFeatureMatch;
 	if (!relativeFeaturePath) {
@@ -85,44 +86,6 @@ function createScenarioFeatures(gherkinDocument: messages.IGherkinDocument): str
 	}
 
 	return gherkinDocument.feature.children.map(createFeature);
-}
-
-function createFeature({ scenario }: messages.GherkinDocument.Feature.IFeatureChild): string {
-	if (!scenario || !scenario.steps) {
-		return '';
-	}
-
-	// The gherkin document will output `And `, jest-cucumber does not provide `and()`, but only `given`, `when` and 
-	// `then`. We thus have to remember what the last keyword is that was used in the document.
-	let keyword = 'Given ';
-
-	return `
-		test('${scenario.name}', ({ given, when, then }) => {
-			${scenario.steps.map(createStep).join(NEW_LINE)}
-		})
-	`;
-
-
-	function createStep(step: messages.GherkinDocument.Feature.IStep): string {
-		if (!step.keyword || !step.text) {
-			return '';
-		}
-
-		if (step.keyword !== 'And ') {
-			keyword = step.keyword;
-		}
-
-		// Handle scenario variables like 'When I sell the <Item>'
-		const vars = step.text.match(/<([^<]+)>/g) || [];
-		const args = vars.map(v => "var" + v.replace(/<|>/g, '') + ": string").join(', ');
-		const text = vars.length === 0 ? `'${step.text}'` : `/^${step.text.replace(/\\|\(|\)|\$|\^/g, (v) => `\\${v}`).replace(/<([^<]+)>/g, '(.*)')}$/`;
-		const method = keyword.replace(' ', '').toLowerCase();
-		return `
-			${method}(${text}, async (${args}) => {
-
-			})
-		`;
-	}
 }
 
 async function streamToArray(
